@@ -161,9 +161,13 @@ impl App {
                     }
                     close_window(ctx);
                 } else {
-                    self.state = State::SendFailed {
-                        message: result.error_message(),
-                    };
+                    let mut message = result.message();
+                    let detail = result.detail();
+                    if !detail.is_empty() {
+                        message.push('\n');
+                        message.push_str(&detail);
+                    }
+                    self.state = State::SendFailed { message };
                 }
             }
             Err(mpsc::TryRecvError::Empty) => {
