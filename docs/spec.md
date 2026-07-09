@@ -84,8 +84,13 @@ GUI アプリのため `#![windows_subsystem = "windows"]` を付与し、起動
 N8N_WEBHOOK_URL=https://your-n8n-domain/webhook/xxxxx
 N8N_BASIC_AUTH_USER=your_username
 N8N_BASIC_AUTH_PASS=your_password
-TARGET_DEVICE_NAME=Microphone (USB MICROPHONE)
+# スペースを含む値は "..." で囲む（dotenvy はクォート無しのスペース入り値を解析エラーにする）
+TARGET_DEVICE_NAME="Microphone (USB MICROPHONE)"
 ```
+
+> **注意**: `TARGET_DEVICE_NAME` のようにスペースを含む値は必ずダブルクォートで囲むこと。
+> 囲まないと dotenvy が `.env` の解析に失敗し、その値以降が読み込まれない。
+> 解析エラー時はウィンドウにその旨（該当行）を表示する。
 
 `.env` はコミットしない（`.gitignore` に登録）。テンプレートとして `.env.example` のみコミットする。
 `.env` の値を書き換えるだけで別 Webhook / 別デバイスへ切り替えられること。
