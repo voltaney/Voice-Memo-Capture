@@ -4,6 +4,8 @@
 mod audio;
 #[allow(dead_code)]
 mod config;
+#[allow(dead_code)]
+mod sender;
 
 fn main() {
     println!("Hello, world!");
