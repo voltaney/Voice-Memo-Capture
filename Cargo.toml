@@ -1,0 +1,16 @@
+[package]
+name = "voice-memo-capture"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+base64 = "0.22.1"
+cpal = "0.18.1"
+dotenvy = "0.15.7"
+global-hotkey = "0.8.0"
+hound = "3.5.1"
+image = "0.25.10"
+reqwest = { version = "0.13.4", features = ["blocking", "json"] }
+tao = "0.35.3"
+tray-icon = "0.24.1"
+winrt-notification = "0.5.1"
