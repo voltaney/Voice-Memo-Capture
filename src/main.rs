@@ -112,8 +112,37 @@ fn main() -> Result<(), slint::PlatformError> {
         }
     }
 
-    ui.run()
+    // ウィンドウを表示 → メインモニタ中央へ移動 → イベントループ。
+    ui.show()?;
+    center_on_primary_monitor(&ui);
+    slint::run_event_loop()?;
+    Ok(())
 }
+
+/// ウィンドウをメインモニタ（プライマリディスプレイ）の中央へ移動する。
+///
+/// プライマリモニタの原点は物理座標で (0,0) なので、画面サイズとウィンドウの
+/// 物理サイズから中央座標を求めて設定する。`show()` 後に呼ぶこと（サイズが確定する）。
+#[cfg(windows)]
+fn center_on_primary_monitor(ui: &AppWindow) {
+    use windows_sys::Win32::UI::WindowsAndMessaging::{GetSystemMetrics, SM_CXSCREEN, SM_CYSCREEN};
+
+    // SAFETY: GetSystemMetrics は副作用のない読み取りのみ。
+    let (screen_w, screen_h) =
+        unsafe { (GetSystemMetrics(SM_CXSCREEN), GetSystemMetrics(SM_CYSCREEN)) };
+    if screen_w <= 0 || screen_h <= 0 {
+        return;
+    }
+
+    let size = ui.window().size();
+    let x = ((screen_w - size.width as i32) / 2).max(0);
+    let y = ((screen_h - size.height as i32) / 2).max(0);
+    ui.window().set_position(slint::PhysicalPosition::new(x, y));
+}
+
+/// Windows 以外では中央配置は行わない（本ツールは Windows 専用）。
+#[cfg(not(windows))]
+fn center_on_primary_monitor(_ui: &AppWindow) {}
 
 /// 「送信」: 録音を停止し WAV を確定してから送信を開始する。
 fn finish_and_send(controller: &Rc<Controller>) {
