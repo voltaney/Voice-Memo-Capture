@@ -22,7 +22,7 @@
 
 | 用途 | クレート |
 | --- | --- |
-| ウィンドウUI（イミディエイトモード） | `eframe` / `egui` |
+| ウィンドウUI（retained-mode / ソフトウェアレンダラ） | `slint`（`backend-winit` + `renderer-software`）、ビルド時 `slint-build` |
 | 録音・デバイス列挙 | `cpal` |
 | WAV 書出し | `hound` |
 | HTTP 送信（blocking POST） | `reqwest`（`blocking`, `json`） |
@@ -30,11 +30,13 @@
 
 GUI アプリのため `#![windows_subsystem = "windows"]` を付与し、起動時のコンソール窓の点滅を防ぐ。
 
+UI は Slint の**ソフトウェアレンダラ**を使う。GPU 初期化が不要なため起動が軽い（旧 eframe/wgpu 版の「もっさり」対策）。フォントはシステムフォントを自動使用するため、日本語表示に追加のフォント読み込みは不要。UI マークアップは `ui/app.slint`、`build.rs` の `slint_build::compile` で生成コード化し `slint::include_modules!()` で取り込む。
+
 ## 4. スレッド構成
 
-- **メインスレッド**: `eframe` イベントループ（egui の `update()`）。ステータス表示・ボタン・チャネルのポーリングのみ。
+- **メインスレッド（UIスレッド）**: Slint イベントループ（`AppWindow::run()`）。状態は `Screen` プロパティで切替。録音セッション/設定はコールバック間で `Rc<RefCell<...>>` 共有。経過秒は `slint::Timer`（200ms 周期）で更新。
 - **録音スレッド**: cpal の `Stream` は `!Send` なので起動直後に spawn し、その中でデバイスを開き・ストリーム構築・保持する。停止シグナル（`Arc<AtomicBool>`）を受けて `hound::WavWriter` を finalize する。
-- **送信スレッド**: 「送信」/「再送信」押下時に spawn。`reqwest` blocking で POST し、結果を `std::sync::mpsc` でメインスレッドへ返す。送信中はメインスレッドが `ctx.request_repaint()` でループを回しチャネルをポーリングする。
+- **送信スレッド**: 「送信」/「再送信」押下時に spawn。`reqwest` blocking で POST し、結果を `slint::Weak::upgrade_in_event_loop` で UI スレッドへ戻して画面遷移する。
 
 ## 5. 起動シーケンス
 
@@ -42,25 +44,27 @@ GUI アプリのため `#![windows_subsystem = "windows"]` を付与し、起動
 2. デバイス存在チェック: `cpal::default_host().input_devices()` を列挙し `TARGET_DEVICE_NAME` に部分一致するデバイスを探す。
    - **見つかった**: 録音スレッドを起動し即録音開始。初期状態 = `Recording`。
    - **見つからない**: 録音を開始せず初期状態 = `DeviceMissing`（内蔵マイク等での誤録音を防ぐ安全装置）。
-3. `eframe::run_native` で小さめの常時最前面ウィンドウを表示。
+3. `AppWindow::run()` で小さめのウィンドウ（角丸カードUI）を表示。
 
-## 6. 状態機械（egui `App`）
+## 6. 状態機械（Slint `Screen`）
 
-| 状態 | 表示 | ボタン |
+UI は `Screen` プロパティの4画面で表現する（egui 版の DeviceMissing / Fatal は「閉じるのみ」で同じ見た目のため `blocked` に統合し、`message` で文言を出し分ける）。
+
+| 画面 | 表示 | ボタン |
 | --- | --- | --- |
-| `Recording` | 「録音中… [経過秒]」 | `終了して送信` / `破棄` |
-| `Sending` | 「送信中…」（ボタン無効化、結果チャネルをポーリング） | なし |
-| `Failed { reason }` | エラー内容（ステータス / 本文先頭 / 接続エラー） | `再送信` / `閉じる` |
-| `DeviceMissing` | 「デバイスが見つかりません: <名前>」 | `閉じる` |
+| `recording` | パルスする赤ドット＋「録音中」＋経過タイマー | `送信` / `破棄` |
+| `sending` | 3点スピナー＋「送信中…」 | なし |
+| `failed` | 主メッセージ（原因）＋技術詳細（`detail`） | `再送信` / `閉じる` |
+| `blocked` | メッセージ（「デバイスが見つかりません: …」等） | `閉じる` |
 
-送信**成功**時は `ViewportCommand::Close` でウィンドウを閉じてプロセス終了する（成功トーストは出さない）。
+送信**成功**時は `slint::quit_event_loop()` でウィンドウを閉じてプロセス終了する（成功トーストは出さない）。
 
 ### ボタン動作
 
-- **終了して送信**: 停止シグナル → 録音スレッド join → WAV 確定 → `Sending` へ遷移し送信スレッド起動。
+- **送信**: 録音停止 → WAV 確定 → `sending` へ遷移し送信スレッド起動。
 - **再送信**: 既存の確定済み WAV を再度送信（録音はし直さない）。
-- **破棄**: 停止シグナル → 録音スレッド join（WAV は残るが送らない）→ ウィンドウを閉じて終了。
-- **閉じる**（`DeviceMissing` / `Failed`）: そのまま終了。
+- **破棄**: 録音停止（WAV は残るが送らない）→ ウィンドウを閉じて終了。
+- **閉じる**（`blocked` / `failed`）: そのまま終了。
 
 ## 7. 一時 WAV ファイル
 
@@ -76,7 +80,10 @@ GUI アプリのため `#![windows_subsystem = "windows"]` を付与し、起動
 - `Content-Type: audio/wav`
 - ボディ: WAV ファイルの生バイナリ。
 - 成功判定: HTTP ステータス 2xx。
-- 失敗理由: ステータスコード / レスポンス本文の先頭 N 文字 / 接続エラーを区別して UI に表示する。
+- 失敗理由は「原因が分かる」よう分類して表示する（`SendResult`）:
+  - **HTTP エラー**: ステータス別の日本語メッセージ（401/403=認証、404=URL、5xx=サーバ側）＋レスポンス本文の先頭抜粋を技術詳細に。
+  - **接続系エラー**: `reqwest` の `is_timeout` / `is_connect` / `is_builder` / `is_request` で「タイムアウト / 接続不可 / URL不正 / 送信失敗」に分類。技術詳細には `source()` チェーン（DNS/TLS等の下層メッセージ）を連結。
+  - UI では主メッセージ（`message`）と技術詳細（`detail`、小さめ表示）を分けて出す。
 
 ## 9. 設定（`.env`）
 

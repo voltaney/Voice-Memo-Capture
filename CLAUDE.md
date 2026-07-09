@@ -4,7 +4,7 @@
 
 ## プロジェクト概要
 
-都度起動型の Windows 音声メモキャプチャツール（Rust + eframe/egui + cpal + reqwest）。
+都度起動型の Windows 音声メモキャプチャツール（Rust + Slint + cpal + reqwest）。UI は `ui/app.slint`（Slint ソフトウェアレンダラ）。
 グローバルホットキー（`.lnk` のショートカットキー）で起動 → 即録音 → ボタンで n8n Webhook へ送信する。
 詳細な仕様は [docs/spec.md](docs/spec.md) を参照。
 
