@@ -90,6 +90,14 @@ TARGET_DEVICE_NAME=Microphone (USB MICROPHONE)
 `.env` はコミットしない（`.gitignore` に登録）。テンプレートとして `.env.example` のみコミットする。
 `.env` の値を書き換えるだけで別 Webhook / 別デバイスへ切り替えられること。
 
+### 読み込み場所
+
+`.lnk` やタスクバーから起動するとカレントディレクトリ（CWD）が不定になるため、
+**実行ファイル（`voice-memo-capture.exe`）と同じディレクトリの `.env` を最優先で読む**。
+その後、補完として CWD 側の `.env`（`cargo run` 時などはプロジェクトルート）も読む。
+dotenvy は既に設定済みの環境変数を上書きしないため、exe 隣の `.env` が優先される。
+運用時は **exe と同じフォルダに `.env` を置く** こと。
+
 ## 10. ショートカット運用
 
 ビルドした `voice-memo-capture.exe` への Windows ショートカット（`.lnk`）を作成し、プロパティの「ショートカットキー」欄に起動ホットキー（例: Ctrl+Alt+R）を設定、アイコンを割り当ててタスクバーにピン留めする。

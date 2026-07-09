@@ -14,6 +14,14 @@ use config::Config;
 
 fn main() -> eframe::Result {
     // .env を読み込む（存在しなくてもエラーにはしない。環境変数が直接あればそれを使う）。
+    // .lnk/タスクバー起動では CWD が不定なため、まず実行ファイルと同じ
+    // ディレクトリの .env を最優先で読む。dotenvy は既存の変数を上書きしないので、
+    // その後の dotenv()（CWD 側。cargo run 時など）は不足分の補完に留まる。
+    if let Ok(exe) = std::env::current_exe()
+        && let Some(dir) = exe.parent()
+    {
+        let _ = dotenvy::from_path(dir.join(".env"));
+    }
     let _ = dotenvy::dotenv();
 
     // ウィンドウ生成前に、設定読込・デバイスチェック・録音開始まで済ませる。
