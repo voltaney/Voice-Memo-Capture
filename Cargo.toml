@@ -24,3 +24,5 @@ dotenvy = "0.15.7"
 [build-dependencies]
 # ui/app.slint をビルド時にRustコードへコンパイルする
 slint-build = "1.17"
+# exe に アプリアイコン（assets/icon.ico）を埋め込む
+winresource = "0.1"

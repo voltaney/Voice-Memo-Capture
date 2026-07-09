@@ -112,9 +112,14 @@ dotenvy は既に設定済みの環境変数を上書きしないため、exe �
 
 ## 10. ショートカット運用
 
-ビルドした `voice-memo-capture.exe` への Windows ショートカット（`.lnk`）を作成し、プロパティの「ショートカットキー」欄に起動ホットキー（例: Ctrl+Alt+R）を設定、アイコンを割り当ててタスクバーにピン留めする。
+ビルドした `voice-memo-capture.exe` への Windows ショートカット（`.lnk`）を作成し、プロパティの「ショートカットキー」欄に起動ホットキー（例: Ctrl+Alt+R）を設定、タスクバーにピン留めする。
 OS 標準のショートカットキー機能を使うため、アプリ側でグローバルホットキーを実装する必要はない。
-補助として `create-shortcut.ps1`（WScript.Shell で `.lnk` を生成し `HotKey` / `IconLocation` を設定するスクリプト）を同梱してもよい（任意）。
+補助として `create-shortcut.ps1`（WScript.Shell で `.lnk` を生成し `HotKey` を設定するスクリプト）を同梱してもよい（任意）。
+
+### アプリアイコン
+
+アイコンは exe に埋め込み済み（`build.rs` の `winresource` が `assets/icon.ico` を埋め込む）なので、Explorer・タスクバー・`.lnk` では自動でアプリアイコンが表示される。手動でのアイコン割り当ては不要。実行中ウィンドウのタイトルバー/タスクバーには Slint の `Window.icon`（`assets/icon.png`）が使われる。
+アイコンのデザインは `assets/make_icon.py`（Pillow）で再生成できる（赤の角丸タイル＋白いマイク）。
 
 ## 11. 非対応事項（スコープ外）
 
