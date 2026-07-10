@@ -3,9 +3,11 @@
 
 mod audio;
 mod config;
+mod encoder;
 mod sender;
 
 use std::cell::RefCell;
+use std::path::Path;
 use std::rc::Rc;
 use std::time::{Duration, Instant};
 
@@ -69,15 +71,11 @@ fn main() -> Result<(), slint::PlatformError> {
             // 経過秒の更新（200ms 周期）。
             {
                 let controller = controller.clone();
-                timer.start(
-                    TimerMode::Repeated,
-                    Duration::from_millis(200),
-                    move || {
-                        if let Some(ui) = controller.ui.upgrade() {
-                            ui.set_elapsed(format_elapsed(controller.started_at.elapsed()).into());
-                        }
-                    },
-                );
+                timer.start(TimerMode::Repeated, Duration::from_millis(200), move || {
+                    if let Some(ui) = controller.ui.upgrade() {
+                        ui.set_elapsed(format_elapsed(controller.started_at.elapsed()).into());
+                    }
+                });
             }
             // 送信 / 破棄 / 再送信 / 閉じる。
             {
@@ -179,15 +177,26 @@ fn spawn_send(controller: &Rc<Controller>) {
     let user = controller.config.basic_user.clone();
     let pass = controller.config.basic_pass.clone();
     let wav_path = controller.config.wav_path.clone();
+    let ogg_path = controller.config.ogg_path.clone();
+    let bitrate_kbps = controller.config.bitrate_kbps;
     let weak = controller.ui.clone();
 
     std::thread::spawn(move || {
-        let result = sender::send_wav(&url, &user, &pass, &wav_path);
+        // 送信前に WAV を Ogg Opus へ変換する（通信量削減）。変換は重い処理があり得るため
+        // UI スレッドではなくこの送信スレッドで行う。再送信時は既存 OGG を使い回す。
+        let result = match ensure_ogg(&wav_path, &ogg_path, bitrate_kbps) {
+            Ok(()) => sender::send_ogg(&url, &user, &pass, &ogg_path),
+            Err(err) => sender::SendResult::RequestError {
+                summary: "音声の変換（OGG）に失敗しました".to_string(),
+                detail: err.to_string(),
+            },
+        };
         // UI 更新は UI スレッドで行う（ウィンドウが生存していれば発火）。
         let _ = weak.upgrade_in_event_loop(move |ui| {
             if result.is_success() {
-                // 成功時のみ一時 WAV を削除する（失敗/破棄時は保持）。
+                // 成功時のみ中間 WAV と送信 OGG を削除する（失敗/破棄時は保持）。
                 let _ = std::fs::remove_file(&wav_path);
+                let _ = std::fs::remove_file(&ogg_path);
                 let _ = slint::quit_event_loop();
             } else {
                 ui.set_message(result.message().into());
@@ -196,6 +205,22 @@ fn spawn_send(controller: &Rc<Controller>) {
             }
         });
     });
+}
+
+/// 送信用の OGG を用意する。
+///
+/// 未生成（初回送信）なら WAV から Opus へ変換する。既に生成済み（再送信）なら
+/// スキップし、同じ録音を二重にエンコードしない。起動時に古い OGG は削除済みなので、
+/// ここで見える OGG は必ず今回の録音セッションのもの。
+fn ensure_ogg(
+    wav_path: &Path,
+    ogg_path: &Path,
+    bitrate_kbps: u32,
+) -> Result<(), encoder::EncodeError> {
+    if ogg_path.exists() {
+        return Ok(());
+    }
+    encoder::encode_wav_to_ogg_opus(wav_path, ogg_path, bitrate_kbps)
 }
 
 /// 経過時間を "m:ss" に整形する。
@@ -267,6 +292,10 @@ fn build_init(env_error: Option<String>) -> AppInit {
         };
     }
 
+    // 前回セッションの古い OGG が残っていると、再送信時の使い回し判定で誤って
+    // 今回の録音の代わりに送られてしまう。録音開始前に必ず消しておく。
+    let _ = std::fs::remove_file(&config.ogg_path);
+
     match RecordingSession::start(config.target_device_name.clone(), config.wav_path.clone()) {
         Ok(session) => AppInit::Recording { config, session },
         Err(err) => AppInit::Fatal {
@@ -291,7 +320,10 @@ mod tests {
     #[test]
     fn dotenvy_はクォート無しのスペース入り値を解析エラーにする() {
         // 今回のバグの根本原因: スペースを含む値をクォートしないと解析エラーになる。
-        let path = write_temp_env("vmc_test_unquoted.env", "VMC_TEST_UNQUOTED=Microphone (USB)\n");
+        let path = write_temp_env(
+            "vmc_test_unquoted.env",
+            "VMC_TEST_UNQUOTED=Microphone (USB)\n",
+        );
         let result = dotenvy::from_path(&path);
         let _ = std::fs::remove_file(&path);
         assert!(
@@ -302,7 +334,10 @@ mod tests {
 
     #[test]
     fn dotenvy_はクォート付きのスペース入り値を読める() {
-        let path = write_temp_env("vmc_test_quoted.env", "VMC_TEST_QUOTED=\"Microphone (USB)\"\n");
+        let path = write_temp_env(
+            "vmc_test_quoted.env",
+            "VMC_TEST_QUOTED=\"Microphone (USB)\"\n",
+        );
         let result = dotenvy::from_path(&path);
         let value = std::env::var("VMC_TEST_QUOTED");
         let _ = std::fs::remove_file(&path);

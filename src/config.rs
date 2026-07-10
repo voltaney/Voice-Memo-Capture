@@ -5,10 +5,16 @@
 
 use std::path::PathBuf;
 
-/// 一時 WAV ファイルを置くサブディレクトリ名（`%TEMP%` 配下）。
+/// 一時ファイルを置くサブディレクトリ名（`%TEMP%` 配下）。
 const TEMP_SUBDIR: &str = "voice-memo-capture";
-/// 一時 WAV ファイル名。起動のたびに上書きする固定名。
+/// 一時 WAV ファイル名（録音の中間ファイル）。起動のたびに上書きする固定名。
 const WAV_FILENAME: &str = "capture.wav";
+/// 送信する Ogg Opus ファイル名。WAV から変換して作る固定名。
+const OGG_FILENAME: &str = "capture.ogg";
+/// ビットレート未設定時の既定値（kbps）。音声メモ用途では 64kbps で実用十分。
+const DEFAULT_BITRATE_KBPS: u32 = 64;
+/// ビットレートの許容範囲（kbps）。Opus の実用域に収める。
+const BITRATE_RANGE_KBPS: std::ops::RangeInclusive<u32> = 6..=510;
 
 /// `.env` から読み込んだ実行時設定。
 #[derive(Debug, Clone)]
@@ -21,8 +27,12 @@ pub struct Config {
     pub basic_pass: String,
     /// 録音に使う入力デバイス名（部分一致で検索する）。
     pub target_device_name: String,
-    /// 一時 WAV ファイルの固定パス（`%TEMP%\voice-memo-capture\capture.wav`）。
+    /// 録音の中間 WAV ファイルの固定パス（`%TEMP%\voice-memo-capture\capture.wav`）。
     pub wav_path: PathBuf,
+    /// 送信する Ogg Opus ファイルの固定パス（`%TEMP%\voice-memo-capture\capture.ogg`）。
+    pub ogg_path: PathBuf,
+    /// Opus エンコードの目標ビットレート（kbps）。
+    pub bitrate_kbps: u32,
 }
 
 /// 設定読み込み時のエラー。
@@ -54,8 +64,11 @@ impl Config {
         let basic_user = required("N8N_BASIC_AUTH_USER")?;
         let basic_pass = required("N8N_BASIC_AUTH_PASS")?;
         let target_device_name = required("TARGET_DEVICE_NAME")?;
+        let bitrate_kbps = bitrate_from_env();
 
-        let wav_path = std::env::temp_dir().join(TEMP_SUBDIR).join(WAV_FILENAME);
+        let temp_dir = std::env::temp_dir().join(TEMP_SUBDIR);
+        let wav_path = temp_dir.join(WAV_FILENAME);
+        let ogg_path = temp_dir.join(OGG_FILENAME);
 
         Ok(Self {
             webhook_url,
@@ -63,6 +76,8 @@ impl Config {
             basic_pass,
             target_device_name,
             wav_path,
+            ogg_path,
+            bitrate_kbps,
         })
     }
 
@@ -87,6 +102,18 @@ fn required(key: &'static str) -> Result<String, ConfigError> {
     }
 }
 
+/// `AUDIO_BITRATE_KBPS` を読み、Opus の実用域へ丸めて返す。
+///
+/// 未設定・空文字・数値でない場合は既定値（64kbps）。範囲外は範囲内へクランプする。
+/// ビットレートは任意設定なので、不正値でも起動を止めず妥当な値へ寄せる。
+fn bitrate_from_env() -> u32 {
+    std::env::var("AUDIO_BITRATE_KBPS")
+        .ok()
+        .and_then(|v| v.trim().parse::<u32>().ok())
+        .map(|kbps| kbps.clamp(*BITRATE_RANGE_KBPS.start(), *BITRATE_RANGE_KBPS.end()))
+        .unwrap_or(DEFAULT_BITRATE_KBPS)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -99,6 +126,8 @@ mod tests {
             basic_pass: "p".to_string(),
             target_device_name: "mic".to_string(),
             wav_path: PathBuf::from("capture.wav"),
+            ogg_path: PathBuf::from("capture.ogg"),
+            bitrate_kbps: 256,
         };
         assert_eq!(
             config.webhook_url_with_source(),
@@ -114,6 +143,8 @@ mod tests {
             basic_pass: "p".to_string(),
             target_device_name: "mic".to_string(),
             wav_path: PathBuf::from("capture.wav"),
+            ogg_path: PathBuf::from("capture.ogg"),
+            bitrate_kbps: 256,
         };
         assert_eq!(
             config.webhook_url_with_source(),

@@ -20,6 +20,10 @@ slint = { version = "1.17", default-features = false, features = [
 reqwest = { version = "0.13.4", features = ["blocking", "json"] }
 # .env 読込
 dotenvy = "0.15.7"
+# Opus エンコード（libopus の安全バインディング。audiopus_sys が libopus を同梱ビルドする）
+audiopus = "0.2.0"
+# Ogg コンテナへの多重化（OpusHead / OpusTags / 音声パケットをページに束ねる）
+ogg = "0.9.2"
 
 # メインモニタのサイズ取得（ウィンドウ中央配置用の GetSystemMetrics）
 [target.'cfg(windows)'.dependencies]

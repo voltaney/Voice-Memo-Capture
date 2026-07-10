@@ -24,7 +24,9 @@
 | --- | --- |
 | ウィンドウUI（retained-mode / ソフトウェアレンダラ） | `slint`（`backend-winit` + `renderer-software`）、ビルド時 `slint-build` |
 | 録音・デバイス列挙 | `cpal` |
-| WAV 書出し | `hound` |
+| WAV 書出し（録音の中間ファイル） | `hound` |
+| Opus エンコード | `audiopus`（libopus 同梱ビルド） |
+| Ogg コンテナ多重化 | `ogg` |
 | HTTP 送信（blocking POST） | `reqwest`（`blocking`, `json`） |
 | `.env` 読込 | `dotenvy` |
 
@@ -40,7 +42,7 @@ UI は Slint の**ソフトウェアレンダラ**を使う。GPU 初期化が�
 
 ## 5. 起動シーケンス
 
-1. `.env` を読込み `Config` を構築。固定 WAV パス（`%TEMP%\voice-memo-capture\capture.wav`）を決定。
+1. `.env` を読込み `Config` を構築。固定パス（録音の中間 `capture.wav` と送信用 `capture.ogg`。ともに `%TEMP%\voice-memo-capture\` 配下）を決定。前回セッションの古い `capture.ogg` は録音開始前に削除する（再送信の使い回し判定で誤送信しないため）。
 2. デバイス存在チェック: `cpal::default_host().input_devices()` を列挙し `TARGET_DEVICE_NAME` に部分一致するデバイスを探す。
    - **見つかった**: 録音スレッドを起動し即録音開始。初期状態 = `Recording`。
    - **見つからない**: 録音を開始せず初期状態 = `DeviceMissing`（内蔵マイク等での誤録音を防ぐ安全装置）。
@@ -63,8 +65,8 @@ UI は `Screen` プロパティの4画面で表現する（egui 版の DeviceMis
 
 ### ボタン動作
 
-- **送信**: 録音停止 → WAV 確定 → `sending` へ遷移し送信スレッド起動。
-- **再送信**: 既存の確定済み WAV を再度送信（録音はし直さない）。
+- **送信**: 録音停止 → WAV 確定 → `sending` へ遷移し送信スレッド起動。送信スレッド内で WAV を Ogg Opus へ変換してから POST する（変換コストが UI を固めないよう別スレッドで実施）。
+- **再送信**: 既に変換済みの OGG があればそれを再送信する（録音・再エンコードはし直さない）。
 - **破棄**: 録音停止（WAV は残るが送らない）→ ウィンドウを閉じて終了。
 - **閉じる**（`blocked` / `failed`）: そのまま終了。
 
@@ -79,17 +81,24 @@ UI は `Screen` プロパティの4画面で表現する（egui 版の DeviceMis
 
 マウスによるボタンクリックも併用できる。
 
-- 固定パス 1 つ（`%TEMP%\voice-memo-capture\capture.wav`）。起動のたびに上書き。
-- 送信**成功**時は削除。**失敗 / 破棄**時は保持（次回起動で上書き）。→ 失敗しても録音を失わずリトライできる。
-- サンプルフォーマット（f32 / i16 / u16）はデバイスに応じて判定し、適切な `WavSpec` で書き出す。チャンネル数・サンプルレートはデバイス既定を使う。
+- 固定パス 2 つ（`%TEMP%\voice-memo-capture\` 配下の `capture.wav`＝録音の中間、`capture.ogg`＝送信用）。起動のたびに上書き。
+- 送信**成功**時は WAV・OGG を両方削除。**失敗 / 破棄**時は保持（次回起動で上書き）。→ 失敗しても録音を失わずリトライできる。
+- サンプルフォーマット（f32 / i16 / i32）はデバイスに応じて判定し、適切な `WavSpec` で書き出す。チャンネル数・サンプルレートはデバイス既定を使う。
+
+### Ogg Opus への変換（送信前）
+
+- 送信の直前に中間 WAV を Ogg Opus（`audiopus` + `ogg`）へ変換し、それを送る。無圧縮 WAV に対し通信量を桁違いに削減する。
+- 目標ビットレートは `.env` の `AUDIO_BITRATE_KBPS`（既定 64、範囲 6〜510 にクランプ）。音声メモ用途なら 64 で実用十分。音質を上げたい場合は 96〜256 などへ。
+- Opus は 8/12/16/24/48kHz のみ対応のため、デバイス既定レート（44100 等）は 48kHz へ線形補間でリサンプルする（主にアップサンプリング）。3ch 以上はモノラルへダウンミックスする。
+- 変換は送信スレッド内で行い、初回送信でのみ実施。再送信では生成済み OGG を使い回す。
 
 ## 8. n8n Webhook への送信仕様
 
 - メソッド: `POST`
 - URL: `N8N_WEBHOOK_URL` に `?source=pc` を付与（`.env` には素の URL を書く）。
 - 認証: `Authorization: Basic <base64>`（`reqwest` の `.basic_auth(user, Some(pass))` に委譲）。
-- `Content-Type: audio/wav`
-- ボディ: WAV ファイルの生バイナリ。
+- `Content-Type: audio/ogg`
+- ボディ: Ogg Opus ファイルの生バイナリ。
 - 成功判定: HTTP ステータス 2xx。
 - 失敗理由は「原因が分かる」よう分類して表示する（`SendResult`）:
   - **HTTP エラー**: ステータス別の日本語メッセージ（401/403=認証、404=URL、5xx=サーバ側）＋レスポンス本文の先頭抜粋を技術詳細に。
@@ -104,6 +113,8 @@ N8N_BASIC_AUTH_USER=your_username
 N8N_BASIC_AUTH_PASS=your_password
 # スペースを含む値は "..." で囲む（dotenvy はクォート無しのスペース入り値を解析エラーにする）
 TARGET_DEVICE_NAME="Microphone (USB MICROPHONE)"
+# 送信する Ogg Opus の目標ビットレート（kbps）。任意。未設定なら 64。範囲 6〜510。
+AUDIO_BITRATE_KBPS=64
 ```
 
 > **注意**: `TARGET_DEVICE_NAME` のようにスペースを含む値は必ずダブルクォートで囲むこと。

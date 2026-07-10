@@ -1,6 +1,6 @@
 //! n8n Webhook への送信モジュール。
 //!
-//! `reqwest` の blocking クライアントで WAV ファイルを生バイナリ POST する。
+//! `reqwest` の blocking クライアントで Ogg Opus ファイルを生バイナリ POST する。
 //! シェルを介さないため、旧プロトタイプ（curl 経由）のクォート崩れ問題は起きない。
 //! 呼び出しは送信スレッドから行い、結果は `SendResult` で返す。
 //!
@@ -68,19 +68,19 @@ fn http_status_message(status: u16) -> String {
     }
 }
 
-/// `wav_path` の WAV を n8n Webhook へ POST する。
+/// `ogg_path` の Ogg Opus を n8n Webhook へ POST する。
 ///
 /// - 認証: Basic 認証（`user` / `pass`）
-/// - ヘッダ: `Content-Type: audio/wav`
-/// - ボディ: WAV ファイルの生バイナリ
+/// - ヘッダ: `Content-Type: audio/ogg`
+/// - ボディ: Ogg Opus ファイルの生バイナリ
 ///
 /// `url` には `?source=pc` を付与済みのものを渡す前提。
-pub fn send_wav(url: &str, user: &str, pass: &str, wav_path: &Path) -> SendResult {
-    let bytes = match std::fs::read(wav_path) {
+pub fn send_ogg(url: &str, user: &str, pass: &str, ogg_path: &Path) -> SendResult {
+    let bytes = match std::fs::read(ogg_path) {
         Ok(bytes) => bytes,
         Err(err) => {
             return SendResult::RequestError {
-                summary: "録音ファイル（WAV）の読み込みに失敗しました".to_string(),
+                summary: "送信ファイル（OGG）の読み込みに失敗しました".to_string(),
                 detail: err.to_string(),
             };
         }
@@ -97,7 +97,7 @@ pub fn send_wav(url: &str, user: &str, pass: &str, wav_path: &Path) -> SendResul
     let response = client
         .post(url)
         .basic_auth(user, Some(pass))
-        .header(reqwest::header::CONTENT_TYPE, "audio/wav")
+        .header(reqwest::header::CONTENT_TYPE, "audio/ogg")
         .body(bytes)
         .send();
 
