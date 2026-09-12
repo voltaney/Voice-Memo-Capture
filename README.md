@@ -1,26 +1,26 @@
 <p align="center">
-  <img src="docs/assets/screenshot.jpg" alt="録音中の音声メモキャプチャツールのウィンドウ" width="420">
+  <img src="docs/assets/screenshot.jpg" alt="録音中の音声メモキャプチャツールのウィンドウ" width="360">
 </p>
 
 # voice-memo-capture
 
-起動すると即録音、ボタン一つで Webhook へ送信する Windows 用の音声メモツール。
+起動すると即録音、ボタン一つでWebhookへ送信するWindows用の音声メモツール。
 
-思いついたことをすぐ声で残したいとき、exe を起動した瞬間から録音が始まり、**Enter キー（またはボタン）を一度押すだけ**で音声が Webhook へ POST される。常駐しないので、1 回の録音 = 1 プロセスで完結する。
+思いついたことをすぐ声で残したいとき、exeを起動した瞬間から録音が始まり、**Enterキー（またはボタン）を一度押すだけ**で音声がWebhookへPOSTされる。常駐しないので、1回の録音 = 1プロセスで完結する。
 
 - **起動＝録音開始**。録音ボタンを探す必要がない。
-- **送信先は任意の Webhook**。URL を `.env` に書くだけ（n8n・Make・自前サーバ等、何でもよい）。
-- 音声は **Ogg Opus**（`audio/ogg`）に変換して送るため、無圧縮 WAV より通信量が桁違いに少ない。
-- Rust + Slint（ソフトウェアレンダラ）製。GPU 初期化なしで軽快に立ち上がる。
+- **送信先は任意のWebhook**。URLを`.env`に書くだけ（n8n・Make・自前サーバ等、何でもよい）。
+- 音声は**Ogg Opus**（`audio/ogg`）に変換して送るため、無圧縮WAVより通信量が桁違いに少ない。
+- Rust + Slint（ソフトウェアレンダラ）製。GPU初期化なしで軽快に立ち上がる。
 
 ## ダウンロード
 
-[Releases](https://github.com/voltaney/Voice-Memo-Capture/releases) から `voice-memo-capture-vX.Y.Z-windows-x64.zip` をダウンロードして解凍する（中身は exe・`.env.example`・README）。自分でビルドする場合は [ビルド](#ビルド) を参照。
+[Releases](https://github.com/voltaney/Voice-Memo-Capture/releases)から`voice-memo-capture-vX.Y.Z-windows-x64.zip`をダウンロードして解凍する（中身はexe・`.env.example`・README）。自分でビルドする場合は[ビルド](#ビルド)を参照。
 
 ## 使い方
 
-1. `voice-memo-capture.exe` と同じフォルダに `.env` を置く（[.env.example](.env.example) をコピーして編集）。
-2. exe を起動する → その場で録音が始まる。
+1. `voice-memo-capture.exe`と同じフォルダに`.env`を置く（[.env.example](.env.example)をコピーして編集）。
+2. exeを起動する → その場で録音が始まる。
 3. **Enter / Space**（または「送信」ボタン）で送信。**Esc**（または「破棄」）で捨てる。
    - 送信に成功するとウィンドウは自動で閉じる。
    - 失敗したときはエラー内容が表示され、「再送信」で録音を撮り直さずリトライできる。
@@ -45,25 +45,25 @@ TARGET_DEVICE_NAME="Microphone (USB MICROPHONE)"
 AUDIO_BITRATE_KBPS=64
 ```
 
-`.env` は exe と同じフォルダのものが最優先で読まれる（`cargo run` 時はプロジェクトルート）。`.env` はコミットしないこと。
+`.env`はexeと同じフォルダのものが最優先で読まれる（`cargo run`時はプロジェクトルート）。`.env`はコミットしないこと。
 
-クエリパラメータを付けたい場合（`?source=pc` など）は、`WEBHOOK_URL` に直接含める。
+クエリパラメータを付けたい場合（`?source=pc`など）は、`WEBHOOK_URL`に直接含める。
 
-## Webhook が受け取るリクエスト
+## Webhookが受け取るリクエスト
 
-| 項目 | 内容 |
-| --- | --- |
-| メソッド | `POST` |
-| URL | `WEBHOOK_URL` をそのまま使う |
-| `Content-Type` | `audio/ogg` |
-| ボディ | Ogg Opus ファイルの生バイナリ |
-| `Authorization` | `BASIC_AUTH_USER` / `BASIC_AUTH_PASS` が設定されているときのみ Basic 認証 |
+| 項目            | 内容                                                                   |
+| --------------- | ---------------------------------------------------------------------- |
+| メソッド        | `POST`                                                                 |
+| URL             | `WEBHOOK_URL`をそのまま使う                                            |
+| `Content-Type`  | `audio/ogg`                                                            |
+| ボディ          | Ogg Opusファイルの生バイナリ                                           |
+| `Authorization` | `BASIC_AUTH_USER` / `BASIC_AUTH_PASS`が設定されているときのみBasic認証 |
 
-HTTP ステータス 2xx を成功とみなす。
+HTTPステータス2xxを成功とみなす。
 
 ## ビルド
 
-必要環境: Windows / Rust（MSVC ツールチェーン）/ **cmake**（`audiopus` が libopus を同梱ビルドするため必須）。
+必要環境: Windows / Rust（MSVCツールチェーン）/ **cmake**（`audiopus`がlibopusを同梱ビルドするため必須）。
 
 ```sh
 cargo run              # 開発時の起動確認
@@ -72,14 +72,14 @@ cargo build --release  # リリースビルド（target/release/voice-memo-captu
 
 ### リリース
 
-`Cargo.toml` の `version` がバージョンの正本で、exe のプロパティ（詳細タブ）にも埋め込まれる。
-version を上げてコミットし、同じ番号のタグ（`vX.Y.Z`）を push すると、GitHub Actions が Windows 向けにビルドして Releases に zip を公開する。
+`Cargo.toml`の`version`がバージョンの正本で、exeのプロパティ（詳細タブ）にも埋め込まれる。
+versionを上げてコミットし、同じ番号のタグ（`vX.Y.Z`）をpushすると、GitHub ActionsがWindows向けにビルドしてReleasesにzipを公開する。
 
 ## おまけ: ホットキーで起動する（任意）
 
-毎回 exe を探しに行くのが面倒なら、Windows 標準のショートカット機能で起動キーを割り当てられる（アプリ側の設定は不要）。
+毎回exeを探しに行くのが面倒なら、Windows標準のショートカット機能で起動キーを割り当てられる（アプリ側の設定は不要）。
 
-1. `voice-memo-capture.exe` のショートカット（`.lnk`）を作る。
+1. `voice-memo-capture.exe`のショートカット（`.lnk`）を作る。
 2. ショートカットのプロパティ →「ショートカットキー」に任意のキー（例: Ctrl+Alt+R）を設定する。
 3. ショートカットをスタートメニューやタスクバーに置く。
 
@@ -87,4 +87,4 @@ version を上げてコミットし、同じ番号のタグ（`vX.Y.Z`）を pus
 
 ## ドキュメント
 
-詳細な仕様は [docs/spec.md](docs/spec.md)、開発ルールは [CLAUDE.md](CLAUDE.md) を参照。
+詳細な仕様は[docs/spec.md](docs/spec.md)、開発ルールは[CLAUDE.md](CLAUDE.md)を参照。
