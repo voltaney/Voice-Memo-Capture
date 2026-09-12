@@ -1,0 +1,108 @@
+# タグ `vX.Y.Z` を push すると、Windows 向けのリリースビルドを行い
+# GitHub Releases に zip を添付して公開する。
+# 手動実行（workflow_dispatch）ではリリースせず、成果物のみアップロードする。
+name: release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+# gh release create でリリースを作成するために必要。
+permissions:
+  contents: write
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Rust (stable) を用意する
+        run: rustup update stable --no-self-update && rustup default stable
+
+      - name: cargo のキャッシュ
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-
+
+      # バージョンの正本は Cargo.toml。タグはそれに合わせる。
+      - name: バージョンを取得する
+        shell: bash
+        run: |
+          version=$(grep -m1 '^version = ' Cargo.toml | sed -E 's/.*"(.*)".*/\1/')
+          echo "VERSION=$version" >> "$GITHUB_ENV"
+          echo "パッケージのバージョン: $version"
+
+      - name: タグと Cargo.toml のバージョンが一致するか確認する
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: bash
+        run: |
+          tag_version="${GITHUB_REF_NAME#v}"
+          if [ "$tag_version" != "$VERSION" ]; then
+            echo "::error::タグ ($GITHUB_REF_NAME) と Cargo.toml のバージョン ($VERSION) が一致しません。Cargo.toml を更新してからタグを打ち直してください。"
+            exit 1
+          fi
+
+      - name: フォーマット確認
+        run: cargo fmt --check
+
+      - name: clippy
+        run: cargo clippy --all-targets -- -D warnings
+
+      - name: テスト
+        run: cargo test
+
+      - name: リリースビルド
+        run: cargo build --release
+
+      # exe に埋め込んだバージョン情報が Cargo.toml と一致することを確認する。
+      - name: exe のバージョン情報を確認する
+        shell: pwsh
+        run: |
+          $info = (Get-Item target/release/voice-memo-capture.exe).VersionInfo
+          $info | Format-List CompanyName, ProductName, FileDescription, FileVersion, ProductVersion
+          if ($info.FileVersion -ne $env:VERSION) {
+            Write-Error "exe のバージョン ($($info.FileVersion)) が Cargo.toml ($env:VERSION) と一致しません"
+            exit 1
+          }
+
+      - name: 配布用の zip を作る
+        shell: pwsh
+        run: |
+          $name = "voice-memo-capture-v$env:VERSION-windows-x64"
+          New-Item -ItemType Directory -Path "dist/$name" -Force | Out-Null
+          Copy-Item target/release/voice-memo-capture.exe "dist/$name/"
+          Copy-Item .env.example "dist/$name/"
+          Copy-Item README.md "dist/$name/"
+          Compress-Archive -Path "dist/$name" -DestinationPath "dist/$name.zip" -Force
+          echo "ASSET=dist/$name.zip" >> $env:GITHUB_ENV
+
+      - name: リリースを作成して zip を添付する
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" "$ASSET" \
+            --title "$GITHUB_REF_NAME" \
+            --generate-notes
+
+      # 手動実行時は動作確認用に成果物だけ残す。
+      - name: 成果物をアップロードする
+        if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: voice-memo-capture-v${{ env.VERSION }}-windows-x64
+          path: ${{ env.ASSET }}

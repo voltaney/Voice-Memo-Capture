@@ -24,6 +24,13 @@
 - `unwrap()` / `expect()` は UI 初期化など回復不能な箇所に限定する。I/O・録音・送信は `Result` で扱い、エラーを UI に反映する（黙って失敗させない）。
 - GUI アプリなので `src/main.rs` の `#![windows_subsystem = "windows"]` は維持する。
 
+## リリース
+
+- **バージョンの正本は `Cargo.toml` の `version`**。exe のプロパティ（詳細タブ）の FileVersion / ProductVersion にも自動で入る。
+- 手順: `Cargo.toml` の version を上げてコミット → `git tag vX.Y.Z` → `git push origin main --tags`。
+- タグ push で [.github/workflows/release.yml](.github/workflows/release.yml) が走る（fmt / clippy / test → `cargo build --release` → zip を Releases に添付）。タグと `Cargo.toml` の version が食い違うと失敗する。
+- exe のプロパティに出る製品名などは `build.rs` の `winresource` で設定している。
+
 ## ビルド / 実行
 
 - 開発時の起動確認: `cargo run`
