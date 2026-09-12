@@ -16,6 +16,9 @@ use slint::{ComponentHandle, Timer, TimerMode};
 use audio::RecordingSession;
 use config::Config;
 
+/// UI に出す技術詳細の最大文字数（ウィンドウに収まる長さ）。
+const DETAIL_LIMIT: usize = 120;
+
 // build.rs が ui/app.slint から生成したコード（AppWindow / Screen）を取り込む。
 slint::include_modules!();
 
@@ -32,7 +35,8 @@ enum AppInit {
     /// 指定デバイスが見つからなかった（誤録音防止のため録音しない）。
     DeviceMissing { device_name: String },
     /// 設定読込や録音開始に失敗した回復不能なエラー。
-    Fatal { message: String },
+    /// `detail` は原因の技術詳細（無ければ空文字）。
+    Fatal { message: String, detail: String },
 }
 
 /// 録音セッション中に、コールバック間で共有する状態。
@@ -101,9 +105,10 @@ fn main() -> Result<(), slint::PlatformError> {
                 let _ = slint::quit_event_loop();
             });
         }
-        AppInit::Fatal { message } => {
+        AppInit::Fatal { message, detail } => {
             ui.set_screen(Screen::Blocked);
             ui.set_message(message.into());
+            ui.set_detail(detail.into());
             ui.on_dismiss(|| {
                 let _ = slint::quit_event_loop();
             });
@@ -240,7 +245,7 @@ fn format_elapsed(elapsed: Duration) -> String {
 /// ファイルが無いのは正常（環境変数を直接使う運用もあり得る）なので無視するが、
 /// 解析エラー（例: スペースを含む値がクォートされていない）は黙殺すると
 /// 「必須の環境変数が未設定」という分かりにくい形で表面化するため、
-/// メッセージとして返して UI に見せる。
+/// 技術詳細（dotenvy のエラー文）として返して UI に見せる。
 fn load_env() -> Option<String> {
     let mut error = None;
 
@@ -260,9 +265,9 @@ fn record_env_error(result: Result<(), dotenvy::Error>, error: &mut Option<Strin
         && !err.not_found()
         && error.is_none()
     {
-        *error = Some(format!(
-            ".env の解析に失敗しました（スペースを含む値は \"...\" で囲ってください）: {err}"
-        ));
+        // 主メッセージは固定文とし、可変長の dotenvy エラー文は技術詳細側へ回す
+        // （小さな固定サイズのウィンドウに収めるため）。
+        *error = Some(sender::excerpt(&err.to_string(), DETAIL_LIMIT));
     }
 }
 
@@ -274,8 +279,12 @@ fn record_env_error(result: Result<(), dotenvy::Error>, error: &mut Option<Strin
 /// - すべて成功: `Recording`
 fn build_init(env_error: Option<String>) -> AppInit {
     // .env の解析エラーがあれば、最優先で表示する。
-    if let Some(message) = env_error {
-        return AppInit::Fatal { message };
+    if let Some(detail) = env_error {
+        return AppInit::Fatal {
+            message: ".env の解析に失敗しました（スペースを含む値は \"...\" で囲ってください）"
+                .to_string(),
+            detail,
+        };
     }
 
     let config = match Config::from_env() {
@@ -283,6 +292,7 @@ fn build_init(env_error: Option<String>) -> AppInit {
         Err(err) => {
             return AppInit::Fatal {
                 message: err.to_string(),
+                detail: String::new(),
             };
         }
     };
@@ -304,7 +314,8 @@ fn build_init(env_error: Option<String>) -> AppInit {
     match RecordingSession::start(config.target_device_name.clone(), config.wav_path.clone()) {
         Ok(session) => AppInit::Recording { config, session },
         Err(err) => AppInit::Fatal {
-            message: format!("録音を開始できませんでした: {err}"),
+            message: "録音を開始できませんでした".to_string(),
+            detail: sender::excerpt(&err.to_string(), DETAIL_LIMIT),
         },
     }
 }

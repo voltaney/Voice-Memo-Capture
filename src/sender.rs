@@ -13,9 +13,10 @@ use std::time::Duration;
 /// 送信全体のタイムアウト。
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(30);
 /// 失敗時にUIへ見せるレスポンス本文の最大文字数。
-const BODY_EXCERPT_LIMIT: usize = 200;
-/// 技術詳細（source チェーン）の最大文字数。
-const DETAIL_LIMIT: usize = 300;
+/// ウィンドウは小さく高さも固定なので、入り切る長さに抑える。
+const BODY_EXCERPT_LIMIT: usize = 120;
+/// 技術詳細（source チェーン）の最大文字数。同じく表示に入り切る長さに抑える。
+const DETAIL_LIMIT: usize = 120;
 
 /// 送信結果。失敗理由を UI に見せられるよう区別して保持する。
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -157,9 +158,16 @@ fn error_chain(err: &reqwest::Error) -> String {
 }
 
 /// 文字列の先頭から最大 `limit` 文字を抜き出す（文字境界を尊重）。
-fn excerpt(text: &str, limit: usize) -> String {
+///
+/// 切り詰めた場合は末尾に「…」を付け、続きがあることを分かるようにする。
+/// UI に出す文字列の長さを揃える用途で、他モジュールからも使う。
+pub fn excerpt(text: &str, limit: usize) -> String {
     let trimmed = text.trim();
-    trimmed.chars().take(limit).collect()
+    let mut result: String = trimmed.chars().take(limit).collect();
+    if trimmed.chars().nth(limit).is_some() {
+        result.push('…');
+    }
+    result
 }
 
 #[cfg(test)]
@@ -168,15 +176,16 @@ mod tests {
 
     #[test]
     fn excerpt_は_先頭から指定文字数を返す() {
-        assert_eq!(excerpt("abcdef", 3), "abc");
+        assert_eq!(excerpt("abcdef", 3), "abc…");
         assert_eq!(excerpt("abc", 10), "abc");
+        assert_eq!(excerpt("abc", 3), "abc");
         assert_eq!(excerpt("  hello  ", 10), "hello");
     }
 
     #[test]
     fn excerpt_はマルチバイト境界を壊さない() {
         // 3文字＝「あいう」。バイト数ではなく文字数で切ること。
-        assert_eq!(excerpt("あいうえお", 3), "あいう");
+        assert_eq!(excerpt("あいうえお", 3), "あいう…");
     }
 
     #[test]

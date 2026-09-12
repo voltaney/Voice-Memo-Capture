@@ -112,7 +112,15 @@ export component AppWindow inherits Window {
     // 都度起動の小窓なので、他ウィンドウに埋もれないよう最前面固定にする。
     always-on-top: true;
     width: 400px;
-    height: 200px;
+    // 画面ごとに必要な高さが違うため、中身に合わせて高さを切り替える。
+    // 固定にすると通常（録音中）は下に余白が余り、失敗時は詳細が入り切らない。
+    // 位置は変えないので、失敗時は下方向へ伸びる。
+    // 文字数は Rust 側で上限を設けているため、各画面の必要な高さは見積もれる。
+    height: root.screen == Screen.failed
+        ? 268px
+        : (root.screen == Screen.blocked
+            ? (root.detail == "" ? 172px : 232px)
+            : 154px);
     background: Palette.bg;
 
     // 起動時にキーハンドラへフォーカスを渡し、マウス移動なしで操作できるようにする。
@@ -226,16 +234,20 @@ export component AppWindow inherits Window {
                     color: Palette.accent;
                 }
                 Text {
+                    // 収まらない場合でも先頭から読めるよう上寄せにする
+                    // （overflow: elide は word-wrap と併用すると最終行しか描画されないため使わない）。
                     text: root.message;
                     font-size: 13px;
                     color: Palette.text;
                     wrap: word-wrap;
+                    vertical-alignment: top;
                 }
                 Text {
                     text: root.detail;
                     font-size: 11px;
                     color: Palette.subtle;
                     wrap: word-wrap;
+                    vertical-alignment: top;
                     visible: root.detail != "";
                 }
             }
@@ -248,12 +260,14 @@ export component AppWindow inherits Window {
                     font-size: 14px;
                     color: Palette.text;
                     wrap: word-wrap;
+                    vertical-alignment: top;
                 }
                 Text {
                     text: root.detail;
                     font-size: 11px;
                     color: Palette.subtle;
                     wrap: word-wrap;
+                    vertical-alignment: top;
                     visible: root.detail != "";
                 }
             }
