@@ -1,4 +1,6 @@
-<!-- TODO: ここにアプリのスクリーンショットを配置する -->
+<p align="center">
+  <img src="docs/assets/screenshot.jpg" alt="録音中の音声メモキャプチャツールのウィンドウ" width="420">
+</p>
 
 # voice-memo-capture
 
