@@ -13,6 +13,10 @@
 - 音声は **Ogg Opus**（`audio/ogg`）に変換して送るため、無圧縮 WAV より通信量が桁違いに少ない。
 - Rust + Slint（ソフトウェアレンダラ）製。GPU 初期化なしで軽快に立ち上がる。
 
+## ダウンロード
+
+[Releases](https://github.com/voltaney/Voice-Memo-Capture/releases) から `voice-memo-capture-vX.Y.Z-windows-x64.zip` をダウンロードして解凍する（中身は exe・`.env.example`・README）。自分でビルドする場合は [ビルド](#ビルド) を参照。
+
 ## 使い方
 
 1. `voice-memo-capture.exe` と同じフォルダに `.env` を置く（[.env.example](.env.example) をコピーして編集）。
@@ -65,6 +69,11 @@ HTTP ステータス 2xx を成功とみなす。
 cargo run              # 開発時の起動確認
 cargo build --release  # リリースビルド（target/release/voice-memo-capture.exe）
 ```
+
+### リリース
+
+`Cargo.toml` の `version` がバージョンの正本で、exe のプロパティ（詳細タブ）にも埋め込まれる。
+version を上げてコミットし、同じ番号のタグ（`vX.Y.Z`）を push すると、GitHub Actions が Windows 向けにビルドして Releases に zip を公開する。
 
 ## おまけ: ホットキーで起動する（任意）
 
