@@ -18,6 +18,8 @@ global Palette {
     out property <color> accent: #e0483d;      // 録音・主要動作（レッド）
     out property <color> send: #2f6bd6;         // 送信（ブルー）
     out property <color> border: #dcdce1;
+    out property <color> ghost-text: #46464c;   // 副次動作ボタンの文字（subtle より少し濃いめ）
+    out property <color> ghost-border: #c3c3cb; // 副次動作ボタンの枠線（border より少し濃いめ）
     out property <color> danger-bg: #fdecea;
 }
 
@@ -57,11 +59,14 @@ component PrimaryButton inherits Rectangle {
         vertical-alignment: center;
     }
     touch := TouchArea {
+        // 押せることが分かるよう、ホバー時は指カーソルにする。
+        mouse-cursor: pointer;
         clicked => { root.clicked(); }
     }
 }
 
 // 副次動作ボタン（枠線のみ）。
+// 枠線だけだと薄く見えるため、文字・枠線は通常のサブテキストより少し濃くする。
 component GhostButton inherits Rectangle {
     in property <string> text;
     callback clicked();
@@ -69,21 +74,23 @@ component GhostButton inherits Rectangle {
     height: 42px;
     border-radius: 9px;
     border-width: 1px;
-    border-color: Palette.border;
+    border-color: Palette.ghost-border;
     background: touch.pressed
-        ? #ececf0
-        : (touch.has-hover ? #f7f7fa : transparent);
+        ? #e6e6ec
+        : (touch.has-hover ? #f2f2f6 : transparent);
     animate background { duration: 90ms; }
 
     Text {
         text: root.text;
-        color: Palette.subtle;
+        color: Palette.ghost-text;
         font-size: 15px;
         font-weight: 500;
         horizontal-alignment: center;
         vertical-alignment: center;
     }
     touch := TouchArea {
+        // 主要動作ボタンと同じく、ホバー時は指カーソルにする。
+        mouse-cursor: pointer;
         clicked => { root.clicked(); }
     }
 }
