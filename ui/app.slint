@@ -75,9 +75,10 @@ component GhostButton inherits Rectangle {
     border-radius: 9px;
     border-width: 1px;
     border-color: Palette.ghost-border;
+    // 透明だとカード背景に溶けてボタンに見えないため、通常時も薄い灰色を敷く。
     background: touch.pressed
-        ? #e6e6ec
-        : (touch.has-hover ? #f2f2f6 : transparent);
+        ? #dcdce3
+        : (touch.has-hover ? #e6e6ec : #eeeef2);
     animate background { duration: 90ms; }
 
     Text {
