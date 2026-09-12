@@ -35,7 +35,8 @@ pub struct Config {
     /// Basic 認証の資格情報。未設定なら `None`（認証なしで送信する）。
     pub basic_auth: Option<BasicAuth>,
     /// 録音に使う入力デバイス名（部分一致で検索する）。
-    pub target_device_name: String,
+    /// 未指定なら `None`＝デバイスチェックを行わず、OS の既定の入力デバイスで録音する。
+    pub target_device_name: Option<String>,
     /// 録音の中間 WAV ファイルの固定パス（`%TEMP%\voice-memo-capture\capture.wav`）。
     pub wav_path: PathBuf,
     /// 送信する Ogg Opus ファイルの固定パス（`%TEMP%\voice-memo-capture\capture.ogg`）。
@@ -77,7 +78,7 @@ impl Config {
     pub fn from_env() -> Result<Self, ConfigError> {
         let webhook_url = required("WEBHOOK_URL")?;
         let basic_auth = basic_auth(optional("BASIC_AUTH_USER"), optional("BASIC_AUTH_PASS"))?;
-        let target_device_name = required("TARGET_DEVICE_NAME")?;
+        let target_device_name = optional("TARGET_DEVICE_NAME");
         let bitrate_kbps = bitrate_from_env();
 
         let temp_dir = std::env::temp_dir().join(TEMP_SUBDIR);

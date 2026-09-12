@@ -1,6 +1,7 @@
 //! 録音まわりのモジュール。
 //!
 //! - 入力デバイスの列挙・存在チェック（`find_input_device`）
+//!   デバイス名が指定されていない場合はチェックを行わず、OS の既定の入力デバイスを使う。
 //! - 録音セッションの開始／停止（`RecordingSession`）
 //! - cpal のコールバックで受け取ったサンプルを hound で WAV に書き出す
 //!
@@ -30,6 +31,8 @@ type WavWriterHandle = Arc<Mutex<Option<hound::WavWriter<BufWriter<File>>>>>;
 pub enum AudioError {
     /// 指定名に一致する入力デバイスが見つからない。
     DeviceNotFound(String),
+    /// 既定の入力デバイスが存在しない（マイクが 1 つも無い）。
+    NoDefaultDevice,
     /// 未対応のサンプルフォーマット。
     UnsupportedSampleFormat(SampleFormat),
     /// cpal 由来のエラー。
@@ -45,6 +48,12 @@ impl std::fmt::Display for AudioError {
         match self {
             AudioError::DeviceNotFound(name) => {
                 write!(f, "入力デバイスが見つかりません: {name}")
+            }
+            AudioError::NoDefaultDevice => {
+                write!(
+                    f,
+                    "既定の入力デバイスが見つかりません（マイクが接続されていません）"
+                )
             }
             AudioError::UnsupportedSampleFormat(fmt) => {
                 write!(f, "未対応のサンプルフォーマットです: {fmt}")
@@ -100,18 +109,27 @@ pub struct RecordingSession {
 }
 
 impl RecordingSession {
-    /// 指定デバイスで録音を開始し、`wav_path` へ書き出す録音スレッドを起動する。
+    /// 録音を開始し、`wav_path` へ書き出す録音スレッドを起動する。
     ///
+    /// `target_device_name` が `None` のときは OS の既定の入力デバイスを使う。
     /// ストリームの構築・再生開始まで成功したことを確認してから返すため、
     /// この関数が `Ok` を返した時点で実際に録音が始まっている。
-    pub fn start(target_device_name: String, wav_path: PathBuf) -> Result<Self, AudioError> {
+    pub fn start(
+        target_device_name: Option<String>,
+        wav_path: PathBuf,
+    ) -> Result<Self, AudioError> {
         let stop = Arc::new(AtomicBool::new(false));
         let stop_for_thread = stop.clone();
         // 録音スレッドの初期化結果（ストリーム再生開始まで）を受け取るチャネル。
         let (ready_tx, ready_rx) = mpsc::channel::<Result<(), AudioError>>();
 
         let handle = std::thread::spawn(move || {
-            record_loop(&target_device_name, &wav_path, &stop_for_thread, &ready_tx)
+            record_loop(
+                target_device_name.as_deref(),
+                &wav_path,
+                &stop_for_thread,
+                &ready_tx,
+            )
         });
 
         // 初期化結果を待つ。送信元が落ちた場合も初期化失敗として扱う。
@@ -154,7 +172,7 @@ impl RecordingSession {
 /// ストリーム再生開始の成否を `ready_tx` で呼び出し側へ通知してから、
 /// 停止フラグの監視ループに入る。
 fn record_loop(
-    target_device_name: &str,
+    target_device_name: Option<&str>,
     wav_path: &Path,
     stop: &AtomicBool,
     ready_tx: &mpsc::Sender<Result<(), AudioError>>,
@@ -192,24 +210,27 @@ fn record_loop(
 }
 
 /// デバイスを取得し、WAV ライターと入力ストリームを構築して返す。
+///
+/// `target_device_name` が `None` のときは既定の入力デバイスを使う。
 fn setup_stream(
-    target_device_name: &str,
+    target_device_name: Option<&str>,
     wav_path: &Path,
 ) -> Result<(cpal::Stream, WavWriterHandle), AudioError> {
     let host = cpal::default_host();
-    let device = host
-        .input_devices()
-        .map_err(|e| AudioError::Cpal(e.to_string()))?
-        .find(|d| {
-            d.description()
-                .map(|desc| {
-                    desc.name()
-                        .to_lowercase()
-                        .contains(&target_device_name.to_lowercase())
-                })
-                .unwrap_or(false)
-        })
-        .ok_or_else(|| AudioError::DeviceNotFound(target_device_name.to_string()))?;
+    let device = match target_device_name {
+        Some(name) => host
+            .input_devices()
+            .map_err(|e| AudioError::Cpal(e.to_string()))?
+            .find(|d| {
+                d.description()
+                    .map(|desc| desc.name().to_lowercase().contains(&name.to_lowercase()))
+                    .unwrap_or(false)
+            })
+            .ok_or_else(|| AudioError::DeviceNotFound(name.to_string()))?,
+        None => host
+            .default_input_device()
+            .ok_or(AudioError::NoDefaultDevice)?,
+    };
 
     let config = device
         .default_input_config()
@@ -295,6 +316,7 @@ where
 fn clone_error(err: &AudioError) -> AudioError {
     match err {
         AudioError::DeviceNotFound(name) => AudioError::DeviceNotFound(name.clone()),
+        AudioError::NoDefaultDevice => AudioError::NoDefaultDevice,
         AudioError::UnsupportedSampleFormat(fmt) => AudioError::UnsupportedSampleFormat(*fmt),
         other => AudioError::Cpal(other.to_string()),
     }

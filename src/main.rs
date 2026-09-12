@@ -287,10 +287,13 @@ fn build_init(env_error: Option<String>) -> AppInit {
         }
     };
 
-    // 指定デバイスの存在を先に確認する（内蔵マイク等での誤録音を防ぐ安全装置）。
-    if audio::find_input_device(&config.target_device_name).is_none() {
+    // デバイス名が指定されているときだけ、その存在を先に確認する
+    // （内蔵マイク等での誤録音を防ぐ安全装置）。未指定なら既定デバイスに任せる。
+    if let Some(name) = &config.target_device_name
+        && audio::find_input_device(name).is_none()
+    {
         return AppInit::DeviceMissing {
-            device_name: config.target_device_name.clone(),
+            device_name: name.clone(),
         };
     }
 
