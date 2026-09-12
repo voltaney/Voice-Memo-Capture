@@ -61,6 +61,22 @@ AUDIO_BITRATE_KBPS=64
 
 HTTPステータス2xxを成功とみなす。
 
+ボディはJSONではなく、Ogg Opusファイルの生バイナリである。実際に送出されるリクエストは以下のとおり。
+
+```http
+POST /webhook/XXXXXXXX HTTP/1.1
+content-type: audio/ogg
+authorization: Basic XXXXXXXXXXXXXXXX
+content-length: 8396
+accept: */*
+host: example.com
+
+OggS........OpusHead....（以降、content-lengthバイト分のバイナリ）
+```
+
+`authorization`は`BASIC_AUTH_USER`／`BASIC_AUTH_PASS`を設定した場合のみ付与される。
+ボディのサイズは64kbpsで約8KB/秒（1分の録音でおよそ0.5MB）。受信側ではJSONとしてではなく、バイナリ（ファイル）として扱う。
+
 ## ビルド
 
 必要環境: Windows / Rust（MSVCツールチェーン）/ **cmake**（`audiopus`がlibopusを同梱ビルドするため必須）。
