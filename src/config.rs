@@ -1,7 +1,11 @@
 //! `.env` から実行時設定を読み込むモジュール。
 //!
-//! Webhook URL への `?source=pc` 付与や、一時 WAV の固定パス決定など、
-//! 設定に関する組み立てをここに集約する。
+//! 送信先 Webhook の URL・Basic 認証、録音デバイスの指定、一時ファイルの
+//! 固定パス決定など、設定に関する組み立てをここに集約する。
+//!
+//! 送信先は特定のサービスに依存しない汎用の Webhook を想定する。
+//! クエリパラメータ等の受け口固有の事情は Webhook URL 自体に含める運用とし、
+//! アプリ側では URL に手を加えない。
 
 use std::path::PathBuf;
 
@@ -16,17 +20,23 @@ const DEFAULT_BITRATE_KBPS: u32 = 64;
 /// ビットレートの許容範囲（kbps）。Opus の実用域に収める。
 const BITRATE_RANGE_KBPS: std::ops::RangeInclusive<u32> = 6..=510;
 
+/// Basic 認証の資格情報。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct BasicAuth {
+    pub user: String,
+    pub pass: String,
+}
+
 /// `.env` から読み込んだ実行時設定。
 #[derive(Debug, Clone)]
 pub struct Config {
-    /// n8n Webhook の素の URL（`?source=pc` は未付与）。
-    webhook_url: String,
-    /// Basic 認証のユーザー名。
-    pub basic_user: String,
-    /// Basic 認証のパスワード。
-    pub basic_pass: String,
+    /// 送信先 Webhook の URL（`.env` に書かれたものをそのまま使う）。
+    pub webhook_url: String,
+    /// Basic 認証の資格情報。未設定なら `None`（認証なしで送信する）。
+    pub basic_auth: Option<BasicAuth>,
     /// 録音に使う入力デバイス名（部分一致で検索する）。
-    pub target_device_name: String,
+    /// 未指定なら `None`＝デバイスチェックを行わず、OS の既定の入力デバイスで録音する。
+    pub target_device_name: Option<String>,
     /// 録音の中間 WAV ファイルの固定パス（`%TEMP%\voice-memo-capture\capture.wav`）。
     pub wav_path: PathBuf,
     /// 送信する Ogg Opus ファイルの固定パス（`%TEMP%\voice-memo-capture\capture.ogg`）。
@@ -36,10 +46,12 @@ pub struct Config {
 }
 
 /// 設定読み込み時のエラー。
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum ConfigError {
     /// 必須の環境変数が未設定。
     Missing(&'static str),
+    /// Basic 認証のユーザー名／パスワードの片方だけが設定されている。
+    IncompleteBasicAuth,
 }
 
 impl std::fmt::Display for ConfigError {
@@ -48,6 +60,10 @@ impl std::fmt::Display for ConfigError {
             ConfigError::Missing(key) => {
                 write!(f, "必須の環境変数が設定されていません: {key}")
             }
+            ConfigError::IncompleteBasicAuth => write!(
+                f,
+                "Basic 認証は BASIC_AUTH_USER と BASIC_AUTH_PASS の両方を設定してください（認証が不要なら両方とも空にしてください）"
+            ),
         }
     }
 }
@@ -58,12 +74,11 @@ impl Config {
     /// `.env`（および環境変数）から設定を構築する。
     ///
     /// `.env` の読み込み自体は呼び出し側で `dotenvy::dotenv()` を実行しておく前提。
-    /// 一時 WAV パスは `std::env::temp_dir()` を基準に決定する。
+    /// 一時ファイルのパスは `std::env::temp_dir()` を基準に決定する。
     pub fn from_env() -> Result<Self, ConfigError> {
-        let webhook_url = required("N8N_WEBHOOK_URL")?;
-        let basic_user = required("N8N_BASIC_AUTH_USER")?;
-        let basic_pass = required("N8N_BASIC_AUTH_PASS")?;
-        let target_device_name = required("TARGET_DEVICE_NAME")?;
+        let webhook_url = required("WEBHOOK_URL")?;
+        let basic_auth = basic_auth(optional("BASIC_AUTH_USER"), optional("BASIC_AUTH_PASS"))?;
+        let target_device_name = optional("TARGET_DEVICE_NAME");
         let bitrate_kbps = bitrate_from_env();
 
         let temp_dir = std::env::temp_dir().join(TEMP_SUBDIR);
@@ -72,33 +87,40 @@ impl Config {
 
         Ok(Self {
             webhook_url,
-            basic_user,
-            basic_pass,
+            basic_auth,
             target_device_name,
             wav_path,
             ogg_path,
             bitrate_kbps,
         })
     }
-
-    /// 送信先 URL に `?source=pc` を付与して返す。
-    ///
-    /// 素の URL に既存のクエリがある場合は `&source=pc` として連結する。
-    pub fn webhook_url_with_source(&self) -> String {
-        let separator = if self.webhook_url.contains('?') {
-            '&'
-        } else {
-            '?'
-        };
-        format!("{}{}source=pc", self.webhook_url, separator)
-    }
 }
 
 /// 必須の環境変数を取得する。未設定・空文字なら `ConfigError::Missing` を返す。
 fn required(key: &'static str) -> Result<String, ConfigError> {
+    optional(key).ok_or(ConfigError::Missing(key))
+}
+
+/// 任意の環境変数を取得する。未設定・空文字なら `None`。
+fn optional(key: &str) -> Option<String> {
     match std::env::var(key) {
-        Ok(value) if !value.trim().is_empty() => Ok(value),
-        _ => Err(ConfigError::Missing(key)),
+        Ok(value) if !value.trim().is_empty() => Some(value),
+        _ => None,
+    }
+}
+
+/// ユーザー名／パスワードの組から Basic 認証設定を組み立てる。
+///
+/// 両方未設定なら認証なし（`None`）。片方だけの設定は設定ミスの可能性が高く、
+/// 黙って認証なしで送ると 401 の原因が分かりにくいため、エラーとして扱う。
+fn basic_auth(
+    user: Option<String>,
+    pass: Option<String>,
+) -> Result<Option<BasicAuth>, ConfigError> {
+    match (user, pass) {
+        (Some(user), Some(pass)) => Ok(Some(BasicAuth { user, pass })),
+        (None, None) => Ok(None),
+        _ => Err(ConfigError::IncompleteBasicAuth),
     }
 }
 
@@ -119,36 +141,31 @@ mod tests {
     use super::*;
 
     #[test]
-    fn source_pc_は_クエリ無しurl_に_疑問符付きで付与される() {
-        let config = Config {
-            webhook_url: "https://example.com/webhook/abc".to_string(),
-            basic_user: "u".to_string(),
-            basic_pass: "p".to_string(),
-            target_device_name: "mic".to_string(),
-            wav_path: PathBuf::from("capture.wav"),
-            ogg_path: PathBuf::from("capture.ogg"),
-            bitrate_kbps: 256,
-        };
+    fn basic認証は_ユーザー名とパスワードが揃っていれば有効になる() {
+        let auth = basic_auth(Some("u".to_string()), Some("p".to_string())).unwrap();
         assert_eq!(
-            config.webhook_url_with_source(),
-            "https://example.com/webhook/abc?source=pc"
+            auth,
+            Some(BasicAuth {
+                user: "u".to_string(),
+                pass: "p".to_string(),
+            })
         );
     }
 
     #[test]
-    fn source_pc_は_既存クエリ付きurl_に_アンパサンドで付与される() {
-        let config = Config {
-            webhook_url: "https://example.com/webhook/abc?foo=bar".to_string(),
-            basic_user: "u".to_string(),
-            basic_pass: "p".to_string(),
-            target_device_name: "mic".to_string(),
-            wav_path: PathBuf::from("capture.wav"),
-            ogg_path: PathBuf::from("capture.ogg"),
-            bitrate_kbps: 256,
-        };
+    fn basic認証は_両方未設定なら認証なしになる() {
+        assert_eq!(basic_auth(None, None).unwrap(), None);
+    }
+
+    #[test]
+    fn basic認証は_片方だけの設定をエラーにする() {
         assert_eq!(
-            config.webhook_url_with_source(),
-            "https://example.com/webhook/abc?foo=bar&source=pc"
+            basic_auth(Some("u".to_string()), None),
+            Err(ConfigError::IncompleteBasicAuth)
+        );
+        assert_eq!(
+            basic_auth(None, Some("p".to_string())),
+            Err(ConfigError::IncompleteBasicAuth)
         );
     }
 }
