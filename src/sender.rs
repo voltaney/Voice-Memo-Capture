@@ -1,8 +1,8 @@
-//! n8n Webhook への送信モジュール。
+//! Webhook への送信モジュール。
 //!
 //! `reqwest` の blocking クライアントで Ogg Opus ファイルを生バイナリ POST する。
-//! シェルを介さないため、旧プロトタイプ（curl 経由）のクォート崩れ問題は起きない。
-//! 呼び出しは送信スレッドから行い、結果は `SendResult` で返す。
+//! 送信先は特定サービスに依存しない汎用の Webhook を想定し、URL は渡されたものを
+//! そのまま使う。呼び出しは送信スレッドから行い、結果は `SendResult` で返す。
 //!
 //! 失敗時は「原因が分かる」ことを重視し、主メッセージ（`message`）と
 //! 技術詳細（`detail`、エラーの source チェーン）を分けて保持する。
@@ -68,14 +68,14 @@ fn http_status_message(status: u16) -> String {
     }
 }
 
-/// `ogg_path` の Ogg Opus を n8n Webhook へ POST する。
+/// `ogg_path` の Ogg Opus を Webhook へ POST する。
 ///
-/// - 認証: Basic 認証（`user` / `pass`）
+/// - 認証: `auth` が `Some((ユーザー名, パスワード))` のときだけ Basic 認証を付ける
 /// - ヘッダ: `Content-Type: audio/ogg`
 /// - ボディ: Ogg Opus ファイルの生バイナリ
 ///
-/// `url` には `?source=pc` を付与済みのものを渡す前提。
-pub fn send_ogg(url: &str, user: &str, pass: &str, ogg_path: &Path) -> SendResult {
+/// `url` は加工せずそのまま使う（クエリパラメータ等は URL 側に含めておく）。
+pub fn send_ogg(url: &str, auth: Option<(&str, &str)>, ogg_path: &Path) -> SendResult {
     let bytes = match std::fs::read(ogg_path) {
         Ok(bytes) => bytes,
         Err(err) => {
@@ -94,12 +94,15 @@ pub fn send_ogg(url: &str, user: &str, pass: &str, ogg_path: &Path) -> SendResul
         Err(err) => return classify_reqwest_error(&err),
     };
 
-    let response = client
+    let mut request = client
         .post(url)
-        .basic_auth(user, Some(pass))
         .header(reqwest::header::CONTENT_TYPE, "audio/ogg")
-        .body(bytes)
-        .send();
+        .body(bytes);
+    // 認証情報が設定されているときだけ Authorization ヘッダを付ける。
+    if let Some((user, pass)) = auth {
+        request = request.basic_auth(user, Some(pass));
+    }
+    let response = request.send();
 
     match response {
         Ok(response) => {

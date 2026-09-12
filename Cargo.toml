@@ -16,7 +16,7 @@ slint = { version = "1.17", default-features = false, features = [
     "renderer-software",
     "accessibility",
 ] }
-# n8n Webhook への blocking POST（Basic認証は basic_auth に委譲）
+# Webhook への blocking POST（Basic認証は basic_auth に委譲）
 reqwest = { version = "0.13.4", features = ["blocking", "json"] }
 # .env 読込
 dotenvy = "0.15.7"
