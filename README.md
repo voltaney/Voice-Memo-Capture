@@ -1,10 +1,25 @@
 <p align="center">
-  <img src="docs/assets/screenshot.jpg" alt="録音中のVoiceHookのウィンドウ" width="360">
+  <img src="assets/icon.png" alt="VoiceHookのアイコン" width="88">
 </p>
 
-# VoiceHook
+<h1 align="center">VoiceHook</h1>
 
-起動すると即録音、ボタン一つでWebhookへ送信するWindows用の音声メモツール。
+<p align="center">
+  起動すると即録音、ボタン一つでWebhookへ送信するWindows用の音声メモツール
+</p>
+
+<p align="center">
+  <a href="https://github.com/voltaney/VoiceHook/releases/latest"><img alt="最新リリース" src="https://img.shields.io/github/v/release/voltaney/VoiceHook?style=flat-square&label=release&color=2f6fd0"></a>
+  <a href="https://github.com/voltaney/VoiceHook/actions/workflows/release.yml"><img alt="ビルド状況" src="https://img.shields.io/github/actions/workflow/status/voltaney/VoiceHook/release.yml?style=flat-square&label=build"></a>
+  <a href="https://github.com/voltaney/VoiceHook/releases"><img alt="ダウンロード数" src="https://img.shields.io/github/downloads/voltaney/VoiceHook/total?style=flat-square&label=downloads&color=555"></a>
+  <img alt="対応プラットフォーム" src="https://img.shields.io/badge/platform-Windows%20x64-0078d4?style=flat-square&logo=windows&logoColor=white">
+  <img alt="Rust" src="https://img.shields.io/badge/Rust-2024%20edition-b7410e?style=flat-square&logo=rust&logoColor=white">
+  <img alt="UI" src="https://img.shields.io/badge/UI-Slint-2379f4?style=flat-square">
+</p>
+
+<p align="center">
+  <img src="docs/assets/screenshot.png" alt="録音中のVoiceHookのウィンドウ" width="380">
+</p>
 
 思いついたことをすぐ声で残したいとき、exeを起動した瞬間から録音が始まり、**Enterキー（またはボタン）を一度押すだけ**で音声がWebhookへPOSTされる。常駐しないので、1回の録音 = 1プロセスで完結する。
 
