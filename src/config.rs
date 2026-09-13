@@ -10,7 +10,7 @@
 use std::path::PathBuf;
 
 /// 一時ファイルを置くサブディレクトリ名（`%TEMP%` 配下）。
-const TEMP_SUBDIR: &str = "voice-memo-capture";
+const TEMP_SUBDIR: &str = "VoiceHook";
 /// 一時 WAV ファイル名（録音の中間ファイル）。起動のたびに上書きする固定名。
 const WAV_FILENAME: &str = "capture.wav";
 /// 送信する Ogg Opus ファイル名。WAV から変換して作る固定名。
@@ -37,9 +37,9 @@ pub struct Config {
     /// 録音に使う入力デバイス名（部分一致で検索する）。
     /// 未指定なら `None`＝デバイスチェックを行わず、OS の既定の入力デバイスで録音する。
     pub target_device_name: Option<String>,
-    /// 録音の中間 WAV ファイルの固定パス（`%TEMP%\voice-memo-capture\capture.wav`）。
+    /// 録音の中間 WAV ファイルの固定パス（`%TEMP%\VoiceHook\capture.wav`）。
     pub wav_path: PathBuf,
-    /// 送信する Ogg Opus ファイルの固定パス（`%TEMP%\voice-memo-capture\capture.ogg`）。
+    /// 送信する Ogg Opus ファイルの固定パス（`%TEMP%\VoiceHook\capture.ogg`）。
     pub ogg_path: PathBuf,
     /// Opus エンコードの目標ビットレート（kbps）。
     pub bitrate_kbps: u32,

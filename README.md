@@ -1,8 +1,8 @@
 <p align="center">
-  <img src="docs/assets/screenshot.jpg" alt="録音中の音声メモキャプチャツールのウィンドウ" width="360">
+  <img src="docs/assets/screenshot.jpg" alt="録音中のVoiceHookのウィンドウ" width="360">
 </p>
 
-# voice-memo-capture
+# VoiceHook
 
 起動すると即録音、ボタン一つでWebhookへ送信するWindows用の音声メモツール。
 
@@ -15,11 +15,11 @@
 
 ## ダウンロード
 
-[Releases](https://github.com/voltaney/Voice-Memo-Capture/releases)から`voice-memo-capture-vX.Y.Z-windows-x64.zip`をダウンロードして解凍する（中身はexe・`.env.example`・`使い方.txt`）。自分でビルドする場合は[ビルド](#ビルド)を参照。
+[Releases](https://github.com/voltaney/VoiceHook/releases)から`VoiceHook-vX.Y.Z-windows-x64.zip`をダウンロードして解凍する（中身はexe・`.env.example`・`使い方.txt`）。自分でビルドする場合は[ビルド](#ビルド)を参照。
 
 ## 使い方
 
-1. `voice-memo-capture.exe`と同じフォルダに`.env`を置く（[.env.example](.env.example)をコピーして編集）。
+1. `VoiceHook.exe`と同じフォルダに`.env`を置く（[.env.example](.env.example)をコピーして編集）。
 2. exeを起動する → その場で録音が始まる。
 3. **Enter / Space**（または「送信」ボタン）で送信。**Esc**（または「破棄」）で捨てる。
    - 送信に成功するとウィンドウは自動で閉じる。
@@ -83,7 +83,7 @@ OggS........OpusHead....（以降、content-lengthバイト分のバイナリ）
 
 ```sh
 cargo run              # 開発時の起動確認
-cargo build --release  # リリースビルド（target/release/voice-memo-capture.exe）
+cargo build --release  # リリースビルド（target/release/VoiceHook.exe）
 ```
 
 ### リリース
@@ -95,7 +95,7 @@ versionを上げてコミットし、同じ番号のタグ（`vX.Y.Z`）をpush�
 
 毎回exeを探しに行くのが面倒なら、Windows標準のショートカット機能で起動キーを割り当てられる（アプリ側の設定は不要）。
 
-1. `voice-memo-capture.exe`のショートカット（`.lnk`）を作る。
+1. `VoiceHook.exe`のショートカット（`.lnk`）を作る。
 2. ショートカットのプロパティ →「ショートカットキー」に任意のキー（例: Ctrl+Alt+R）を設定する。
 3. ショートカットをスタートメニューやタスクバーに置く。
 

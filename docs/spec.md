@@ -1,4 +1,4 @@
-# 音声メモキャプチャツール 仕様書
+# VoiceHook（音声メモ） 仕様書
 
 ## 1. 目的
 
@@ -42,7 +42,7 @@ UI は Slint の**ソフトウェアレンダラ**を使う。GPU 初期化が�
 
 ## 5. 起動シーケンス
 
-1. `.env` を読込み `Config` を構築。固定パス（録音の中間 `capture.wav` と送信用 `capture.ogg`。ともに `%TEMP%\voice-memo-capture\` 配下）を決定。前回セッションの古い `capture.ogg` は録音開始前に削除する（再送信の使い回し判定で誤送信しないため）。
+1. `.env` を読込み `Config` を構築。固定パス（録音の中間 `capture.wav` と送信用 `capture.ogg`。ともに `%TEMP%\VoiceHook\` 配下）を決定。前回セッションの古い `capture.ogg` は録音開始前に削除する（再送信の使い回し判定で誤送信しないため）。
 2. デバイス存在チェック（`TARGET_DEVICE_NAME` が指定されている場合のみ）: `cpal::default_host().input_devices()` を列挙し、名前に部分一致するデバイスを探す。
    - **見つかった**: 録音スレッドを起動し即録音開始。初期状態 = `Recording`。
    - **見つからない**: 録音を開始せず初期状態 = `DeviceMissing`（内蔵マイク等での誤録音を防ぐ安全装置）。
@@ -82,7 +82,7 @@ UI は `Screen` プロパティの4画面で表現する（egui 版の DeviceMis
 
 マウスによるボタンクリックも併用できる。
 
-- 固定パス 2 つ（`%TEMP%\voice-memo-capture\` 配下の `capture.wav`＝録音の中間、`capture.ogg`＝送信用）。起動のたびに上書き。
+- 固定パス 2 つ（`%TEMP%\VoiceHook\` 配下の `capture.wav`＝録音の中間、`capture.ogg`＝送信用）。起動のたびに上書き。
 - 送信**成功**時は WAV・OGG を両方削除。**失敗 / 破棄**時は保持（次回起動で上書き）。→ 失敗しても録音を失わずリトライできる。
 - サンプルフォーマット（f32 / i16 / i32）はデバイスに応じて判定し、適切な `WavSpec` で書き出す。チャンネル数・サンプルレートはデバイス既定を使う。
 
@@ -137,7 +137,7 @@ AUDIO_BITRATE_KBPS=64
 ### 読み込み場所
 
 `.lnk` やタスクバーから起動するとカレントディレクトリ（CWD）が不定になるため、
-**実行ファイル（`voice-memo-capture.exe`）と同じディレクトリの `.env` を最優先で読む**。
+**実行ファイル（`VoiceHook.exe`）と同じディレクトリの `.env` を最優先で読む**。
 その後、補完として CWD 側の `.env`（`cargo run` 時などはプロジェクトルート）も読む。
 dotenvy は既に設定済みの環境変数を上書きしないため、exe 隣の `.env` が優先される。
 運用時は **exe と同じフォルダに `.env` を置く** こと。
@@ -145,7 +145,7 @@ dotenvy は既に設定済みの環境変数を上書きしないため、exe �
 ## 10. ショートカット運用（任意）
 
 ホットキーでの起動は必須ではなく、ユーザー任意のオプションとする。
-使いたい場合は `voice-memo-capture.exe` への Windows ショートカット（`.lnk`）を作り、プロパティの「ショートカットキー」欄に起動ホットキー（例: Ctrl+Alt+R）を設定する。
+使いたい場合は `VoiceHook.exe` への Windows ショートカット（`.lnk`）を作り、プロパティの「ショートカットキー」欄に起動ホットキー（例: Ctrl+Alt+R）を設定する。
 OS 標準の機能で賄えるため、アプリ側でグローバルホットキーは実装しない。
 
 ### アプリアイコン
@@ -155,7 +155,7 @@ OS 標準の機能で賄えるため、アプリ側でグローバルホット�
 
 ### バージョン情報 / 配布
 
-`build.rs` の `winresource` で、exe のプロパティ「詳細」タブに出る情報（ProductName・FileDescription =「音声メモキャプチャツール」、FileVersion / ProductVersion = `Cargo.toml` の `version`）を埋め込む。
+`build.rs` の `winresource` で、exe のプロパティ「詳細」タブに出る情報（ProductName・FileDescription =「VoiceHook（音声メモ）」、FileVersion / ProductVersion = `Cargo.toml` の `version`）を埋め込む。
 配布は GitHub Releases。`Cargo.toml` の version と一致するタグ（`vX.Y.Z`）を push すると `.github/workflows/release.yml` が Windows 向けにビルドし、exe・`.env.example`・README をまとめた zip を添付して公開する（バージョンが食い違う場合はワークフローが失敗する）。
 
 ## 11. 非対応事項（スコープ外）

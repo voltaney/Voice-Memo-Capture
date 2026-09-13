@@ -4,7 +4,7 @@
 
 ## プロジェクト概要
 
-都度起動型の Windows 音声メモキャプチャツール（Rust + Slint + cpal + reqwest）。UI は `ui/app.slint`（Slint ソフトウェアレンダラ）。
+都度起動型の Windows 音声メモツール VoiceHook（Rust + Slint + cpal + reqwest）。UI は `ui/app.slint`（Slint ソフトウェアレンダラ）。
 起動すると即録音が始まり、ボタン一つで任意の Webhook へ音声を送信する（送信先サービスは限定しない）。
 詳細な仕様は [docs/spec.md](docs/spec.md) を参照。
 

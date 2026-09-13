@@ -1,4 +1,4 @@
-﻿voice-memo-capture - 使い方
+﻿VoiceHook（音声メモ）- 使い方
 
 起動すると即録音、ボタン一つでWebhookへ送信するWindows用の音声メモツールです。
 常駐しません。1回の録音で1プロセスが完結します。
@@ -6,9 +6,9 @@
 
 ■ 同梱ファイル
 
-  voice-memo-capture.exe   本体
-  .env.example             設定ファイルのテンプレート
-  使い方.txt               このファイル
+  VoiceHook.exe     本体
+  .env.example      設定ファイルのテンプレート
+  使い方.txt        このファイル
 
 
 ■ 準備（初回のみ）
@@ -16,14 +16,14 @@
 1. .env.exampleをコピーして、ファイル名を.envに変更する。
    （拡張子ではなくファイル名全体が「.env」です）
 2. .envをメモ帳などで開き、WEBHOOK_URLに送信先のURLを書く。
-3. .envをvoice-memo-capture.exeと同じフォルダに置く。
+3. .envをVoiceHook.exeと同じフォルダに置く。
 
 exeと同じフォルダに.envがないと、起動時にエラーになります。
 
 
 ■ 使い方
 
-1. voice-memo-capture.exeを起動する。その場で録音が始まります。
+1. VoiceHook.exeを起動する。その場で録音が始まります。
 2. 話し終わったらEnterまたはSpaceキー（画面の「送信」ボタンでも可）で送信。
 3. 送信に成功するとウィンドウは自動で閉じます。
 
@@ -72,7 +72,7 @@ HTTPステータスが2xxなら成功とみなします。
 毎回exeを探しに行くのが面倒なら、Windows標準のショートカット機能で
 起動キーを割り当てられます。アプリ側の設定は不要です。
 
-1. voice-memo-capture.exeのショートカット（.lnk）を作る。
+1. VoiceHook.exeのショートカット（.lnk）を作る。
 2. ショートカットを右クリックしてプロパティを開き、「ショートカットキー」に
    任意のキー（例: Ctrl+Alt+R）を設定する。
 3. ショートカットをスタートメニューやタスクバーに置く。
@@ -96,4 +96,4 @@ HTTPステータスが2xxなら成功とみなします。
 
 ■ 配布元
 
-https://github.com/voltaney/Voice-Memo-Capture
+https://github.com/voltaney/VoiceHook
