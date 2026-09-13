@@ -15,7 +15,7 @@
 
 ## ダウンロード
 
-[Releases](https://github.com/voltaney/Voice-Memo-Capture/releases)から`voice-memo-capture-vX.Y.Z-windows-x64.zip`をダウンロードして解凍する（中身はexe・`.env.example`・README）。自分でビルドする場合は[ビルド](#ビルド)を参照。
+[Releases](https://github.com/voltaney/Voice-Memo-Capture/releases)から`voice-memo-capture-vX.Y.Z-windows-x64.zip`をダウンロードして解凍する（中身はexe・`.env.example`・`使い方.txt`）。自分でビルドする場合は[ビルド](#ビルド)を参照。
 
 ## 使い方
 

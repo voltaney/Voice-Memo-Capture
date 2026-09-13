@@ -85,7 +85,7 @@ jobs:
           New-Item -ItemType Directory -Path "dist/$name" -Force | Out-Null
           Copy-Item target/release/voice-memo-capture.exe "dist/$name/"
           Copy-Item .env.example "dist/$name/"
-          Copy-Item README.md "dist/$name/"
+          Copy-Item "使い方.txt" "dist/$name/"
           Compress-Archive -Path "dist/$name" -DestinationPath "dist/$name.zip" -Force
           echo "ASSET=dist/$name.zip" >> $env:GITHUB_ENV
 
