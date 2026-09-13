@@ -12,9 +12,9 @@ fn main() {
 
         // exe のプロパティ「詳細」タブに表示される情報。
         // FileVersion / ProductVersion には Cargo.toml の version が自動で入る。
-        res.set("ProductName", "VoiceHook（音声メモ）");
+        res.set("ProductName", "VoiceHook");
         // Windows はタスクマネージャ等でのアプリ名として FileDescription を使う。
-        res.set("FileDescription", "VoiceHook（音声メモ）");
+        res.set("FileDescription", "VoiceHook");
         res.set("OriginalFilename", "VoiceHook.exe");
         if let Err(err) = res.compile() {
             // 埋め込みに失敗してもビルド自体は続行する（警告のみ）。

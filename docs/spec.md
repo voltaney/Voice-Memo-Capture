@@ -1,4 +1,4 @@
-# VoiceHook（音声メモ） 仕様書
+# VoiceHook 仕様書
 
 ## 1. 目的
 
@@ -155,7 +155,7 @@ OS 標準の機能で賄えるため、アプリ側でグローバルホット�
 
 ### バージョン情報 / 配布
 
-`build.rs` の `winresource` で、exe のプロパティ「詳細」タブに出る情報（ProductName・FileDescription =「VoiceHook（音声メモ）」、FileVersion / ProductVersion = `Cargo.toml` の `version`）を埋め込む。
+`build.rs` の `winresource` で、exe のプロパティ「詳細」タブに出る情報（ProductName・FileDescription =「VoiceHook」、FileVersion / ProductVersion = `Cargo.toml` の `version`）を埋め込む。
 配布は GitHub Releases。`Cargo.toml` の version と一致するタグ（`vX.Y.Z`）を push すると `.github/workflows/release.yml` が Windows 向けにビルドし、exe・`.env.example`・README をまとめた zip を添付して公開する（バージョンが食い違う場合はワークフローが失敗する）。
 
 ## 11. 非対応事項（スコープ外）
