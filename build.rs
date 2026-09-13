@@ -12,10 +12,10 @@ fn main() {
 
         // exe のプロパティ「詳細」タブに表示される情報。
         // FileVersion / ProductVersion には Cargo.toml の version が自動で入る。
-        res.set("ProductName", "音声メモキャプチャツール");
+        res.set("ProductName", "VoiceHook（音声メモ）");
         // Windows はタスクマネージャ等でのアプリ名として FileDescription を使う。
-        res.set("FileDescription", "音声メモキャプチャツール");
-        res.set("OriginalFilename", "voice-memo-capture.exe");
+        res.set("FileDescription", "VoiceHook（音声メモ）");
+        res.set("OriginalFilename", "VoiceHook.exe");
         if let Err(err) = res.compile() {
             // 埋め込みに失敗してもビルド自体は続行する（警告のみ）。
             println!("cargo:warning=アイコン・バージョン情報の埋め込みに失敗しました: {err}");

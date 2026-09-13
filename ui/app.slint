@@ -1,4 +1,4 @@
-// 音声メモキャプチャの UI。
+// VoiceHook の UI。
 // 都度起動の小窓。4つの画面（録音中/送信中/失敗/停止）を screen プロパティで切り替える。
 
 // 画面の種類。
@@ -107,7 +107,7 @@ export component AppWindow inherits Window {
     callback retry();
     callback dismiss();
 
-    title: "音声メモキャプチャツール";
+    title: "VoiceHook（音声メモ）";
     icon: @image-url("../assets/icon.png");
     // 都度起動の小窓なので、他ウィンドウに埋もれないよう最前面固定にする。
     always-on-top: true;

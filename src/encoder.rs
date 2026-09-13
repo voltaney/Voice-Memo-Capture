@@ -29,7 +29,7 @@ const MAX_PACKET_SIZE: usize = 4000;
 /// Ogg 論理ストリームのシリアル番号（単一ストリームなので固定でよい）。
 const OGG_SERIAL: u32 = 0x0056_454D; // 'V','E','M' 由来の任意固定値
 /// `OpusTags` に載せるベンダ文字列。
-const VENDOR: &str = "voice-memo-capture";
+const VENDOR: &str = "VoiceHook";
 
 /// エンコードに関するエラー。
 #[derive(Debug)]

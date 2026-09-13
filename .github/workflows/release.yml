@@ -71,7 +71,7 @@ jobs:
       - name: exe のバージョン情報を確認する
         shell: pwsh
         run: |
-          $info = (Get-Item target/release/voice-memo-capture.exe).VersionInfo
+          $info = (Get-Item target/release/VoiceHook.exe).VersionInfo
           $info | Format-List CompanyName, ProductName, FileDescription, FileVersion, ProductVersion
           if ($info.FileVersion -ne $env:VERSION) {
             Write-Error "exe のバージョン ($($info.FileVersion)) が Cargo.toml ($env:VERSION) と一致しません"
@@ -81,9 +81,9 @@ jobs:
       - name: 配布用の zip を作る
         shell: pwsh
         run: |
-          $name = "voice-memo-capture-v$env:VERSION-windows-x64"
+          $name = "VoiceHook-v$env:VERSION-windows-x64"
           New-Item -ItemType Directory -Path "dist/$name" -Force | Out-Null
-          Copy-Item target/release/voice-memo-capture.exe "dist/$name/"
+          Copy-Item target/release/VoiceHook.exe "dist/$name/"
           Copy-Item .env.example "dist/$name/"
           Copy-Item "使い方.txt" "dist/$name/"
           Compress-Archive -Path "dist/$name" -DestinationPath "dist/$name.zip" -Force
@@ -104,5 +104,5 @@ jobs:
         if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
         uses: actions/upload-artifact@v4
         with:
-          name: voice-memo-capture-v${{ env.VERSION }}-windows-x64
+          name: VoiceHook-v${{ env.VERSION }}-windows-x64
           path: ${{ env.ASSET }}
