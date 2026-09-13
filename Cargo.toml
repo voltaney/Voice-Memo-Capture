@@ -2,7 +2,7 @@
 name = "voicehook"
 # リリースのバージョンはここが正本。タグ `vX.Y.Z` と一致させる
 # （不一致なら GitHub Actions のリリースが失敗する）。exe のバージョン情報にも埋め込まれる。
-version = "0.1.0"
+version = "0.2.0"
 edition = "2024"
 description = "起動すると即録音、ボタン一つでWebhookへ送信するWindows用の音声メモツール"
 repository = "https://github.com/voltaney/VoiceHook"
